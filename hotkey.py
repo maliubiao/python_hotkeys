@@ -1,12 +1,16 @@
-import keyboard 
+#! /usr/bin/env python
+#-*-encoding=utf-8-*-
 
+import keyboard 
 import select
 import os
+import sys
 import pwd
 import fcntl
 import signal
 import os.path
 import hashlib
+import stat
 
 def run_as_user(user):
     try:
@@ -122,17 +126,57 @@ def run_listener(device):
         except IOError as e:
             pass
 
+def bgrun():
+    log_file = open(LOG, "w+", buffering=False)
+    pid_file = open(PID, "w+", buffering=False) 
+    fcntl.fcntl(log_file.fileno(), fcntl.F_SETFD, fcntl.FD_CLOEXEC) 
+    fcntl.fcntl(pid_file.fileno(), fcntl.F_SETFD, fcntl.FD_CLOEXEC) 
+    user = pwd.getpwnam(USER)
+    os.chown(LOG, user.pw_uid, user.pw_gid)
+    os.chown(PID, user.pw_uid, user.pw_gid)
+    try:
+        status = os.fork()
+    except OSError as e:
+        print e
+    if not status:
+        os.setsid() 
+        stdin = open("/dev/null", "r")
+        os.dup2(stdin.fileno(), 0)
+        os.dup2(log_file.fileno(), 1)
+        os.dup2(log_file.fileno(), 2) 
+        try:
+            status2 = os.fork()
+        except OSError as e:
+            print e
+        if status2: 
+            pid_file.write(str(status2))
+            pid_file.close()
+            exit() 
+    else:
+        exit() 
+
 def hotkey(kbds): 
-    #open keyboard 
     table = {}
     for i in kbds:
-        print "kbd: ", i
+        print "keyboard: ", i
         pid = os.fork()
         if not pid: 
             run_listener(i)
             exit(0) 
         table[pid] = i
+    def force_quit(*args):
+        for i in table:
+            try:
+                os.kill(i, signal.SIGKILL)
+            except OSError:
+                pass
+        try:
+            os.remove(PID)
+        except OSError:
+            pass
+    signal.signal(signal.SIGINT, force_quit) 
     #make sure no zombies 
+    run_as_user(USER)
     while True:
         try:
             pid, _ = os.wait()
@@ -143,9 +187,22 @@ def hotkey(kbds):
             print "die" 
             exit(0) 
 
+def pid_exists(pid):
+    if not os.access(pid, os.F_OK):
+        return False
+    f = open(pid, "r")
+    pid = int(f.read())
+    f.close()
+    return os.access("/proc/%d" % pid, os.F_OK) 
 
-if __name__ == "__main__":
-    import pdb
-    from hotkey_config import CONFIG, DUMP, USER 
+if __name__ == "__main__": 
+    from hotkey_config import CONFIG, DUMP, USER, DAEMON, LOG, PID 
+    if pid_exists(PID):
+        print "already running"
+        exit(0) 
+    if DAEMON: 
+        print "log: ", LOG
+        print "pid: ", PID
+        bgrun()
     KEYS_TABLE = keys_table(CONFIG) 
     hotkey(find_kbds()) 
