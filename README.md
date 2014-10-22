@@ -54,5 +54,5 @@ kill -s SIGINT `cat /tmp/hotkeys.pid`
 ###可用的键码 
 参考keyboard.py, 太长, 这里就不写了.
 
-欢迎fork, 欢迎反馈
+###欢迎fork, 欢迎反馈
 

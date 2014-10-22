@@ -193,7 +193,7 @@ def pid_exists(pid):
     f = open(pid, "r")
     pid = int(f.read())
     f.close()
-    return os.access("/proc/%d" % pid, os.F_OK) 
+    return os.access("/proc/%d % pid", os.F_OK) and "hotkey.py" in open("/proc/%d/cmdline" % pid).read()
 
 if __name__ == "__main__": 
     from hotkey_config import CONFIG, DUMP, USER, DAEMON, LOG, PID 
