@@ -119,6 +119,7 @@ def run_listener(device):
     #reset environ
     home = pwd.getpwnam(USER).pw_dir
     os.environ["HOME"] = home
+    os.environ["DISPLAY"] = ":0.0"
     os.environ["XAUTHORITY"] = home + "/.Xauthority" 
     while True:
         try:
